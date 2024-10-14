@@ -124,7 +124,7 @@ def XYsplit(data, targetvar):
 # Function 2: Quick and dirty data transformation pipelines:
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import SimpleImputer
+from sklearn.impute import SimpleImputerer
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import FeatureUnion
 import pandas as pd

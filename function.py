@@ -123,6 +123,8 @@ def XYsplit(data, targetvar):
 ###########################################################################
 # Function 2: Quick and dirty data transformation pipelines:
 
+from sklearn.base import BaseEstimator, TransformerMixin
+
 # A class to select numerical or categorical columns 
 class DataFrameSelector(BaseEstimator, TransformerMixin):
     """

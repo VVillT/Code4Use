@@ -122,12 +122,6 @@ def XYsplit(data, targetvar):
 
 ###########################################################################
 # Function 2: Quick and dirty data transformation pipelines:
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.impute import SimpleImputerer
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.pipeline import FeatureUnion
-import pandas as pd
 
 # A class to select numerical or categorical columns 
 class DataFrameSelector(BaseEstimator, TransformerMixin):
@@ -150,6 +144,13 @@ class DataFrameSelector(BaseEstimator, TransformerMixin):
 class MostFrequentImputer(BaseEstimator, TransformerMixin):
     """
     Custom transformer that fills missing values in categorical columns with the most frequent value.
+
+    Require Packages:
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import OneHotEncoder
+    from sklearn.impute import SimpleImputerer
+    from sklearn.base import BaseEstimator, TransformerMixin
+    from sklearn.pipeline import FeatureUnion
     """
     def fit(self, X, y=None):
         self.most_frequent_ = pd.Series([X[c].value_counts().index[0] for c in X],
@@ -187,18 +188,20 @@ class MostFrequentImputer(BaseEstimator, TransformerMixin):
 
 ###########################################################################
 #Function 3 Run the trained data across various models: 
-import matplotlib.pyplot as plt
-from sklearn import model_selection
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.metrics import roc_curve, cross_val_predict
 
 def plot_roc_curve(fpr, tpr, model_name):
     """
     Plots the ROC curve for a given model.
+
+    Require Packages: 
+    import matplotlib.pyplot as plt
+    from sklearn import model_selection
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.tree import DecisionTreeClassifier
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.naive_bayes import GaussianNB
+    from sklearn.metrics import roc_curve, cross_val_predict
     
     Parameters:
     fpr (array): False Positive Rate values for the ROC curve.
@@ -220,6 +223,16 @@ def evaluate_models(X_train, y_train, seed=1234, scoring='accuracy'):
     """
     This function evaluates several machine learning models using k-fold cross-validation 
     and compares their performance. Additionally, it plots ROC curves for each model.
+    
+    Require Packages: 
+    import matplotlib.pyplot as plt
+    from sklearn import model_selection
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.tree import DecisionTreeClassifier
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.naive_bayes import GaussianNB
+    from sklearn.metrics import roc_curve, cross_val_predict
     
     Parameters:
     X_train (DataFrame or ndarray): The training data (features).

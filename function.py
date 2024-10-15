@@ -189,8 +189,7 @@ class MostFrequentImputer(BaseEstimator, TransformerMixin):
 #X_train
 
 ###########################################################################
-#Function 3 Run the trained data across various models: 
-
+#Function 3.1 Plot the roc curve of a model - more of a support
 def plot_roc_curve(fpr, tpr, model_name):
     """
     Plots the ROC curve for a given model.
@@ -221,75 +220,165 @@ def plot_roc_curve(fpr, tpr, model_name):
     plt.legend(loc="lower right", fontsize=16)
     plt.show()
 
-def evaluate_models(X_train, y_train, seed=1234, scoring='accuracy'):
+###########################################################################
+#Function 3.2 Support function to find the best threshold of a model (the best point on a RoC curve graph): 
+def find_best_threshold(y_true, y_scores):
     """
-    This function evaluates several machine learning models using k-fold cross-validation 
-    and compares their performance. Additionally, it plots ROC curves for each model.
-    
-    Require Packages: 
-    import matplotlib.pyplot as plt
-    from sklearn import model_selection
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.neighbors import KNeighborsClassifier
-    from sklearn.tree import DecisionTreeClassifier
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.naive_bayes import GaussianNB
-    from sklearn.metrics import roc_curve, cross_val_predict
+    Find the best threshold based on F1 score for binary classification.
+
+    Required Packages:
+    from sklearn.model_selection import KFold, cross_val_predict, cross_val_score
+    from sklearn.metrics import roc_curve, roc_auc_score, accuracy_score, f1_score, precision_score, recall_score
     
     Parameters:
-    X_train (DataFrame or ndarray): The training data (features).
-    y_train (Series or ndarray): The training labels (target variable).
-    seed (int): The random seed for reproducibility (default: 1234).
-    scoring (str): The scoring metric used for evaluating model performance (default: 'accuracy').
+    - y_true: Ground truth binary labels.
+    - y_scores: Predicted scores or probabilities for the positive class.
     
     Returns:
-    results (list): Cross-validation scores for each model.
-    names (list): The names of the models.
-    
-    Example usage:
-    results, names = evaluate_models(X_train, y_train)
+    - best_threshold: The threshold that maximizes the F1 score.
+    - best_f1: The F1 score at the best threshold.
     """
+    fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+    best_f1 = 0
+    best_threshold = 0
+
+    for threshold in thresholds:
+        y_pred = (y_scores >= threshold).astype(int)
+        f1 = f1_score(y_true, y_pred)
+        if f1 > best_f1:
+            best_f1 = f1
+            best_threshold = threshold
+
+    return best_threshold, best_f1
+
+###########################################################################
+#Function 3.3 The big model to connect the section 3 and run the models evaluation: 
+def evaluate_models(models, X_train, y_train, scoring='accuracy', n_splits=10):
+    """
+    This function evaluates multiple models using cross-validation and compares their performance
+    through boxplots. It also calculates ROC-AUC for models with probability predictions and suggests
+    the best model based on the highest accuracy and AUC score.
     
-    # Define a dictionary of models to evaluate
+    Required Packages:
+    from sklearn.model_selection import KFold, cross_val_score, cross_val_predict
+    from sklearn.metrics import roc_curve, roc_auc_score, accuracy_score, f1_score, precision_score, recall_score
+    from sklearn import model_selection
+
+    Parameters:
+    - models (dict): A dictionary where keys are model names and values are instantiated model objects.
+    - X_train (DataFrame or array): The training input data.
+    - y_train (Series or array): The target variable for training.
+    - scoring (str): The evaluation metric (default is 'accuracy').
+    - n_splits (int): Number of folds for cross-validation (default is 10).
+    
+    Returns:
+    - models (dict): The input models.
+    - results (list of arrays): Cross-validation results for each model.
+    - names (list): The names of the models.
+    - best_model_name (str): The name of the best model based on accuracy or AUC.
+    - best_thresholds (dict): The best threshold for each model (if applicable).
+
+    Example:
+    from sklearn.model_selection import KFold, cross_val_score, cross_val_predict
+    from sklearn.metrics import roc_curve, roc_auc_score, accuracy_score, f1_score, precision_score, recall_score
+
     models = {
         "Logreg": LogisticRegression(solver='lbfgs', max_iter=1000),
         "NN": KNeighborsClassifier(),
+        #"LinearSVM": SVC(probability=True, kernel='linear'), #class_weight='balanced'
+        "GBC": GradientBoostingClassifier(),
         "DT": DecisionTreeClassifier(),
         "RF": RandomForestClassifier(),
         "NB": GaussianNB(),
     }
+
+    # Run the eval
+    models, results, names, best_acc_model, best_auc_model, best_thresholds = evaluate_models(models, X_train, y_train, scoring='accuracy', n_splits=5)
+    """
     
-    # Initialize variables to store results
     results = []
     names = []
+    mean_scores = []
+    auc_scores = {}
+    best_thresholds = {}  # To store the best threshold for each model
+    best_model_acc_threshold = None  # To store the best threshold for the accuracy model
+    best_auc_model_acc = None  # To store the accuracy for the best AUC model
     
-    # Perform k-fold cross-validation for each model
     for name, model in models.items():
-        kfold = model_selection.KFold(n_splits=10, random_state=seed, shuffle=True)
-        cv_results = model_selection.cross_val_score(model, X_train, y_train, cv=kfold, scoring=scoring)
+        kfold = KFold(n_splits=n_splits)
+        cv_results = cross_val_score(model, X_train, y_train, cv=kfold, scoring=scoring)
         results.append(cv_results)
         names.append(name)
-        
-        # Print the cross-validation results
-        msg = f"{name}: {cv_results.mean():.4f} ({cv_results.std():.4f})"
+        mean_score = cv_results.mean()
+        mean_scores.append(mean_score)
+        msg = f"{name}: {mean_score:.4f} ({cv_results.std():.4f})"
         print(msg)
-        
-        # ROC Curve generation
+
+        # Generate ROC curve and calculate AUC for models with predict_proba
         if hasattr(model, "predict_proba"):
             y_probas = cross_val_predict(model, X_train, y_train, cv=kfold, method="predict_proba")
             y_scores = y_probas[:, 1]  # Use the probability of the positive class
             fpr, tpr, thresholds = roc_curve(y_train, y_scores)
-            plot_roc_curve(fpr, tpr, name)
-    
-    # Boxplot to compare model performance
-    fig = plt.figure()
+            
+            auc = roc_auc_score(y_train, y_scores)
+            auc_scores[name] = auc
+            print(f"{name}: AUC = {auc:.4f}")
+            plot_roc_curve2(fpr, tpr, name)
+            
+            # Find the best threshold based on F1 score
+            best_threshold, best_f1 = find_best_threshold(y_train, y_scores)
+            best_thresholds[name] = best_threshold
+            print(f"{name}: Best threshold = {best_threshold:.4f}, Best F1 score = {best_f1:.4f}")
+
+            # Evaluate model performance at the best threshold
+            y_pred_at_best_threshold = (y_scores >= best_threshold).astype(int)
+            acc = accuracy_score(y_train, y_pred_at_best_threshold)
+            precision = precision_score(y_train, y_pred_at_best_threshold)
+            recall = recall_score(y_train, y_pred_at_best_threshold)
+            f1 = f1_score(y_train, y_pred_at_best_threshold)
+            print(f"{name} performance at best threshold: Accuracy = {acc:.4f}, Precision = {precision:.4f}, Recall = {recall:.4f}, F1 = {f1:.4f}")
+
+            # Track the best threshold for the accuracy model
+            if name == names[np.argmax(mean_scores)]:
+                best_model_acc_threshold = best_threshold    
+                
+            # Track the accuracy for the best AUC model
+            if auc == max(auc_scores.values()):
+                best_auc_model_acc = acc
+            
+    # Boxplot algorithm comparison
+    fig = plt.figure(figsize=(10, 6))
     fig.suptitle('Algorithm Comparison')
     ax = fig.add_subplot(111)
     plt.boxplot(results)
     ax.set_xticklabels(names)
+    plt.ylabel(scoring.capitalize())
     plt.show()
 
-    return results, names
+    # Suggest the best model based on accuracy
+    best_acc_index = np.argmax(mean_scores)
+    best_model_acc_name = names[best_acc_index]
+    print(f"\nThe best model based on accuracy is: {best_model_acc_name} with an average score of {mean_scores[best_acc_index]:.4f}")
+    print(f"The best threshold for {best_model_acc_name} is: {best_model_acc_threshold:.4f}")
+    
+    # Suggest the best model based on AUC (if applicable)
+    if auc_scores:
+        best_auc_model = max(auc_scores, key=auc_scores.get)
+        print(f"The best model based on AUC is: {best_auc_model} with an AUC score of {auc_scores[best_auc_model]:.4f} and an accuracy of {best_auc_model_acc:.4f}")
+    else:
+        best_auc_model = None
 
-# Example usage:
-# results, names = evaluate_models(X_train, y_train)
+    return models, results, names, best_model_acc_name, best_auc_model, best_thresholds
+
+
+def export_model(models,best_model_acc_name):
+    """
+    Export the selected model as a pickle file - a support function
+
+    Required Package:
+        pickle
+    """
+    best_model_object = models[best_model_acc_name]  # Save the model object for exporting
+    with open(f"{best_model_acc_name}_model.pkl", 'wb') as f:
+        pickle.dump(best_model_object, f)
+    print(f"\nModel ({best_model_acc_name}) has been saved as '{best_model_acc_name}_model.pkl'.")

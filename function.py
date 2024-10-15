@@ -6,6 +6,9 @@
 ###########################################################################
 ###########################################################################
 
+
+import pandas as pd
+
 ###########################################################################
 # Function 0.1: Drop multiple columns as part of a flow aka can cont if error 
 def Drop_1ormore_col(dataframe, *column_names):
@@ -90,7 +93,7 @@ def stack_2_datasets(data1 , data1name , data2 , data2name):
     """
     data1['file'] = data1name
     data2['file'] = data2name
-    full = data1.append(data2, sort=False)
+    full = pd.concat([data1, data2], ignore_index=True, sort=False)
     print(data1name, 'has', data1.shape ,'rows/columns')
     print(data2name, 'has', data2.shape ,'rows/columns')
     print('After combining vertically, the new data now has', full.shape,'rows/columns')
